@@ -1,0 +1,47 @@
+CREATE TABLE IF NOT EXISTS "worker" (
+	id INTEGER PRIMARY KEY,
+	fullname TEXT NOT NULL,
+	role TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "recipe" (
+	id INTEGER PRIMARY KEY,
+	title TEXT NOT NULL UNIQUE,
+	category TEXT NOT NULL,
+	role TEXT NOT NULL,
+	price REAL NOT NULL,
+	weight INTEGER NOT NULL	
+);
+
+CREATE TABLE IF NOT EXISTS "product" (
+	id INTEGER PRIMARY KEY,
+	amount INTEGER NOT NULL,
+	measurement TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "order" (
+	id INTEGER PRIMARY KEY,
+	recipe_id INTEGER NOT NULL,
+	quantity INTEGER NOT NULL,
+	created_at TEXT NOT NULL,
+	FOREIGN KEY (recipe_id) REFERENCES recipe(id)
+);
+
+CREATE TABLE IF NOT EXISTS "ingredient" (
+	id INTEGER PRIMARY KEY,
+	recipe_id INTEGER NOT NULL,
+	product_id INTEGER NOT NULL,
+	amount INTEGER NOT NULL,
+	processing_type TEXT NOT NULL,
+	FOREIGN KEY (recipe_id) REFERENCES recipe(id),
+	FOREIGN KEY (product_id) REFERENCES product(id)	
+);
+
+CREATE TABLE IF NOT EXISTS "warehouse_log" (
+	id INTEGER PRIMARY KEY,
+	product_id INTEGER NOT NULL,
+	action_type INTEGER NOT NULL,
+	amount INTEGER NOT NULL,
+	log_at TEXT NOT NULL,
+	FOREIGN KEY (product_id) REFERENCES product(id)	
+);
