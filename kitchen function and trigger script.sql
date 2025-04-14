@@ -6,9 +6,10 @@ BEGIN
 	WHERE i.recipe_id = OLD.recipe_id;
 END;
 
-DELETE FROM "order" WHERE recipe_id = 3;
-
-SELECT * FROM ingredient i WHERE i.recipe_id = 3;
-
-SELECT * FROM warehouse_log wl;
-
+CREATE TRIGGER change_product_amount_after_warehouse_log_insert AFTER INSERT ON "warehouse_log"
+FOR EACH ROW
+BEGIN
+	UPDATE product
+	    SET amount = amount + (NEW.amount * NEW.action_type)
+    WHERE id = NEW.product_id;
+END;
