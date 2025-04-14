@@ -1,0 +1,6 @@
+{
+    "watch": ["src"],
+    "ext": "*",
+    "exec": "npm run start"
+  }
+  
