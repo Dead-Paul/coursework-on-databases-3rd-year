@@ -1,0 +1,171 @@
+* {
+    padding: 0px;
+    margin: 0px;
+}
+
+:root {
+    --primary-background-color: #315c2b;
+    --secondary-background-color: #a1c23e;
+    --additional-background-color: #60712f;
+    --main-background-color: #181f1c;
+
+    --primary-text-color: #9ea93f;
+}
+
+body {
+    background-color: var(--main-background-color);
+}
+
+#body {
+    color: var(--primary-text-color);
+}
+
+#header {
+    width: 100vw;
+    height: 50px;
+
+    position: fixed;
+    display: flex;
+    justify-content: space-between;
+
+    padding-left: 20px;
+    padding-right: 20px;
+
+    box-sizing: border-box;
+
+    background-color: var(--primary-background-color);
+}
+
+button {
+    background-color: var(--additional-background-color);
+    display: flex;
+    flex-direction: row;
+    align-items: center;
+
+    border: none;
+    border-radius: 10px;
+}
+
+#header button img {
+    height: 30px;
+    padding-left: 10px;
+}
+
+button p{
+    padding: 10px;
+}
+
+button:hover {
+    background-color: var(--secondary-background-color);
+}
+
+select {
+    background-color: var(--additional-background-color);
+    border: none;
+    border-radius: 10px;
+}
+
+#header select:hover {
+    background-color: var(--secondary-background-color);
+}
+
+#body {
+    padding-top: 50px;
+}
+
+#body table {
+    margin: auto;
+    max-width: 95vw;
+    min-width: 70vw;
+    text-align: center;
+    padding: 20px;
+}
+
+#body td {
+    padding: 10px
+}
+
+#body .info-table tr:nth-child(1n+1) {
+    background-color: var(--primary-background-color);
+}
+
+#body .info-table tr:first-child {
+    background-color: var(--additional-background-color);
+}
+
+#body button {
+    margin: auto;
+}
+
+#user-info, #login {
+    height: 300px;
+    width: 250px;
+}
+
+.pop-up{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+
+    padding: 30px;
+
+    border: 5px dashed var(--main-background-color);
+    border-radius: 10px;
+
+    max-height: 80vh;
+    max-width: 90vw;
+
+    display: flex;
+    flex-direction: column;
+    text-align: justify;
+    align-items: center;
+    justify-content: center;
+
+    background-color: var(--primary-background-color);
+
+}
+
+#user-info div, #login div    {
+    height: 150px;
+    z-index: 1;
+}
+
+#login {
+    z-index: 2;
+}
+
+#properties {
+    justify-content: flex-start;
+    overflow-y: auto;
+    z-index: 1;
+}
+
+.dark-div {
+    z-index: 1;
+    position: fixed;
+    top: 0px;
+    bottom: 0px;
+    left: 0px;
+    right: 0px;
+    background-color: var(--main-background-color);
+}
+
+#login p {
+    font-size: large;
+}
+
+input {
+    background-color: var(--additional-background-color);
+    border-radius: 10px;
+    padding: 5px;
+}
+
+.functional-buttons {
+    width: 100%;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    padding-top: 30px;
+}
