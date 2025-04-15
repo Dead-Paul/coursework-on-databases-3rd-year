@@ -1,4 +1,4 @@
-import {useState} from 'react'
+import {useEffect, useState} from 'react'
 
 namespace Tables {
     export namespace Order {
@@ -61,6 +61,7 @@ namespace Tables {
                     <div className='dark-div'>
                         <div id='properties' className='pop-up'>
                             <h1>Рецепт "{order.recipeTitle}"</h1>
+                            <p>🧾 Замовлено: <span style={{ fontWeight: 'bold'}}>{order.quantity}</span> порц.</p>
                             <table className='info-table'>
                                 <tr>
                                     <td>Назва</td>
@@ -135,11 +136,13 @@ namespace Tables {
         export class PropertyObject {
             private static async editRecipe(recipe: TableObject, setDisplay: (display: JSX.Element | null) => void, 
                 deleteOnCancel? : boolean) {
-                const EditRecipeComponent = ({recipe, ingredients, products, setDisplay} : {
+                const EditRecipeComponent = ({recipe, ingredients, products, setDisplay, categories, roles} : {
                         recipe: DatabaseObject,
                         ingredients: any[],
                         products: any[],
                         setDisplay: (display: JSX.Element | null) => void
+                        categories: string[],
+                        roles: string[]
                     })  => {
                     const [title, setTitle] = useState(recipe.title);
                     const [category, setCategory] = useState(recipe.category);
@@ -202,8 +205,28 @@ namespace Tables {
                                 <table>
                                     <tbody>
                                         <tr><td>Назва</td><td><input value={title} onChange={e => setTitle(e.target.value)} /></td></tr>
-                                        <tr><td>Категорія</td><td><input value={category} onChange={e => setCategory(e.target.value)} /></td></tr>
-                                        <tr><td>Роль</td><td><input value={role} onChange={e => setRole(e.target.value)} /></td></tr>
+                                        <tr>
+                                            <td>Категорія</td>
+                                            <td>
+                                                <input list="category-list" value={category} onChange={e => setCategory(e.target.value)}/>
+                                                <datalist id="category-list">
+                                                    {categories.map((c, idx) => (
+                                                        <option key={idx} value={c} />
+                                                    ))}
+                                                </datalist>
+                                            </td>
+                                        </tr>
+                                        <tr>
+                                            <td>Роль</td>
+                                            <td>
+                                                <input list="role-list" value={role} onChange={e => setRole(e.target.value)}/>
+                                                <datalist id="role-list">
+                                                    {roles.map((r, idx) => (
+                                                        <option key={idx} value={r} />
+                                                    ))}
+                                                </datalist>
+                                            </td>
+                                        </tr>
                                         <tr><td>Ціна</td><td><input type="number" step="0.01" value={price} onChange={e => setPrice(e.target.value)} /></td></tr>
                                         <tr><td>Вага</td><td><input type="number" value={weight} onChange={e => setWeight(parseInt(e.target.value))} /></td></tr>
                                     </tbody>
@@ -230,9 +253,7 @@ namespace Tables {
                                                 </select>
                                             </td>
                                             <td>
-                                                <input
-                                                    type="number"
-                                                    value={ing.amount}
+                                                <input type="number" value={ing.amount}
                                                     onChange={e => updateIngredient(index, 'amount', parseInt(e.target.value))}
                                                 />
                                                 {` ${ing.measurement}`}
@@ -269,7 +290,15 @@ namespace Tables {
                      JOIN product p ON p.id = i.product_id
                      WHERE i.recipe_id = ?`, [recipe.id]
                 ) as any[];
-            
+
+                const recipeCategories = await window.electron.database(
+                    `SELECT DISTINCT category FROM recipe`
+                ) as { category: string }[];
+                
+                const workerRoles = await window.electron.database(
+                    `SELECT DISTINCT role FROM recipe`
+                ) as { role: string }[];
+                
                 const products = await window.electron.database(`SELECT id, name, measurement FROM product`) as any[];
             
                 return (
@@ -278,6 +307,8 @@ namespace Tables {
                         ingredients={ingredients}
                         products={products}
                         setDisplay={setDisplay}
+                        categories={recipeCategories.map(recipe => recipe.category)}
+                        roles={workerRoles.map(worker => worker.role)}
                     />
                 );
             };
@@ -321,12 +352,34 @@ namespace Tables {
                 );      
             };
             
-            public static async findRecipe(setDisplay: (display: JSX.Element | null) => void) {
+            public static async findRecipe(userRole: string, setDisplay: (display: JSX.Element | null) => void) {
                 const FindRecipeForm = () => {
                     const [searchTerm, setSearchTerm] = useState('');
                     const [searchBy, setSearchBy] = useState('name');
                     const [searchResults, setSearchResults] = useState<any[]>([]);
-            
+                    const [suggestions, setSuggestions] = useState<string[]>([]);
+
+                    useEffect(() => {
+                        const fetchSuggestions = async () => {
+                            let query = '';
+                            switch (searchBy) {
+                                case 'name':
+                                    query = 'SELECT DISTINCT title AS value FROM recipe';
+                                    break;
+                                case 'category':
+                                    query = 'SELECT DISTINCT category AS value FROM recipe';
+                                    break;
+                                case 'ingredient':
+                                    query = 'SELECT DISTINCT name AS value FROM product';
+                                    break;
+                            }
+                            const result = await window.electron.database(query, []) as { value: string }[];
+                            setSuggestions(result.map(row => row.value));
+                        };
+                
+                        fetchSuggestions();
+                    }, [searchBy]);
+
                     const handleSearch = async () => {
                         let query = '';
                         let params: any[] = [];
@@ -362,7 +415,7 @@ namespace Tables {
                                 <h1>Пошук рецепту</h1>
                 
                                 <label>Шукати за:
-                                    <select value={searchBy} onChange={e => setSearchBy(e.target.value)}>
+                                    <select value={searchBy} onChange={e => setSearchBy(e.target.value as any)}>
                                         <option value="name">Назва страви</option>
                                         <option value="category">Категорія</option>
                                         <option value="ingredient">Інгредієнт</option>
@@ -372,11 +425,17 @@ namespace Tables {
                                 <br />
                                 <label>Пошуковий запит:
                                     <input
+                                        list="search-suggestions"
                                         value={searchTerm}
                                         onChange={e => setSearchTerm(e.target.value)}
                                     />
+                                    <datalist id="search-suggestions">
+                                        {suggestions.map((val, idx) => (
+                                            <option key={idx} value={val} />
+                                        ))}
+                                    </datalist>
                                 </label>
-                                
+                
                                 <br />
                                 <button onClick={handleSearch}><p>Шукати</p></button>
                                 <br />
@@ -392,7 +451,11 @@ namespace Tables {
                                                 <th>Вага</th>
                                             </tr>
                                             {searchResults.map((recipe: any) => (
-                                                <tr key={recipe.id}>
+                                                <tr key={recipe.id}
+                                                    onClick={async () =>
+                                                        setDisplay(await this.onClick(userRole, setDisplay, recipe))
+                                                    }
+                                                >
                                                     <td>{recipe.title}</td>
                                                     <td>{recipe.category}</td>
                                                     <td>{recipe.price}</td>
@@ -425,7 +488,7 @@ namespace Tables {
         export const translated: string = 'Меню';
 
         export class TableObject {
-            public static getQuery = (_: string) => (
+            public static getQuery = (_?: string) => (
                 `SELECT r.id, r.title, r.category, r.price, r.weight FROM "recipe" r`
             );
             public static columns = [
@@ -523,7 +586,7 @@ namespace Tables {
         };
     
         export class TableObject {
-            public static getQuery = (_: string) => (
+            public static getQuery = (_?: string) => (
                 `SELECT id, name, amount || ' ' || measurement AS amount, measurement FROM product ORDER BY name ASC`
             );
     
@@ -614,19 +677,22 @@ namespace Tables {
 
             public static async onClick(_: string, setDisplay: (display: JSX.Element | null) => void, product: TableObject) {
                 const logs = await window.electron.database(
-                    `SELECT wl.id, p.name, wl.action_type, wl.amount || ' ' || p.measurement AS amount, 
-                        STRFTIME('%m-%d %H:%M', wl.log_at) AS log_at 
+                    `SELECT wl.id, wl.action_type, wl.amount, STRFTIME('%m-%d %H:%M', wl.log_at) AS log_at 
                     FROM "warehouse_log" wl 
-                    JOIN "product" p ON p.id = wl.product_id 
                     WHERE wl.product_id = ?
                     ORDER BY wl.log_at DESC`,
                     [product.id]
                 ) as { action_type: number; amount: number; log_at: string }[];
-            
+
+                const totalAdded = logs.filter(log => log.action_type === 1).reduce((sum, log) => sum + log.amount, 0);
+                const totalUsed = logs.filter(log => log.action_type === -1).reduce((sum, log) => sum + log.amount, 0);
+
                 const LogTable = () => (
                     <div className='dark-div'>
                         <div id="properties" className="pop-up">
                             <h2>Журнал дій для: {product.name}</h2>
+                            <p><strong>Всього додано:</strong> {totalAdded} {product.measurement}</p>
+                            <p><strong>Всього використано:</strong> {totalUsed} {product.measurement}</p>
                             <table className='info-table'>
                                 <tr>
                                     <th>Дія</th>
@@ -636,7 +702,7 @@ namespace Tables {
                                 {logs.map((log, index) => (
                                     <tr key={index}>
                                         <td>{log.action_type === 1 ? 'Додано' : 'Використано'}</td>
-                                        <td>{log.amount}</td>
+                                        <td>{`${log.amount} ${product.measurement}`}</td>
                                         <td>{log.log_at}</td>
                                     </tr>
                                 ))}
@@ -645,8 +711,69 @@ namespace Tables {
                         </div>
                     </div>
                 );
-            
                 return <LogTable />;
+            };
+
+            public static async findProduct(setDisplay: (display: JSX.Element | null) => void) {
+                const allProducts = await window.electron.database(Warehouse.TableObject.getQuery()) as TableObject[];
+            
+                const FindProductForm = () => {
+                    const [searchTerm, setSearchTerm] = useState('');
+                    const [results, setResults] = useState<typeof allProducts>([]);
+            
+                    const handleSearch = () => {
+                        const filtered = allProducts.filter(p => 
+                            p.name.toLowerCase().includes(searchTerm.toLowerCase())
+                        );
+                        setResults(filtered);
+                    };
+            
+                    return (
+                        <div className="dark-div">
+                            <div id="properties" className="pop-up">
+                                <h2>Пошук продукту на складі</h2>
+            
+                                <label>
+                                    Назва продукту:
+                                    <input
+                                        list="product-suggestions"
+                                        value={searchTerm}
+                                        onChange={e => setSearchTerm(e.target.value)}
+                                    />
+                                    <datalist id="product-suggestions">
+                                        {allProducts.map((p, idx) => (
+                                            <option key={idx} value={p.name} />
+                                        ))}
+                                    </datalist>
+                                </label>
+                                <br />
+                                <button onClick={handleSearch}><p>Шукати</p></button>
+                                <br />
+            
+                                {results.length > 0 && (
+                                    <div>
+                                        <h3>Результати:</h3>
+                                        <table className='info-table'>
+                                            <tr>
+                                                <th>Назва</th>
+                                                <th>Кількість</th>
+                                            </tr>
+                                            {results.map((p) => (
+                                                <tr key={p.id} onClick={async () => setDisplay(await this.onClick('', setDisplay, p))}>
+                                                    <td>{p.name}</td>
+                                                    <td>{p.amount}</td>
+                                                </tr>
+                                            ))}
+                                        </table>
+                                    </div>
+                                )}
+                                <br />
+                                <button onClick={() => setDisplay(null)}><p>Закрити</p></button>
+                            </div>
+                        </div>
+                    );
+                };
+                setDisplay(<FindProductForm />);
             };
         };
     };
@@ -666,7 +793,7 @@ namespace Tables {
             };
         };
         export class TableObject {
-            public static getQuery = (_ : string) => (
+            public static getQuery = (_? : string) => (
                 `SELECT w.id, w.fullname, w.role FROM "worker" w`
             );
             public static columns = [
@@ -686,9 +813,9 @@ namespace Tables {
         };
         export class PropertyObject {
             public static async onClick(_: string, setDisplay: (display: JSX.Element | null) => void, worker: TableObject) {
-                const recipes = await window.electron.database(`SELECT r.id, r.title, r.category, r.price, r.weight 
-                    FROM "recipe" r ${worker.role.toLowerCase() !== 'executive chef'? ('WHERE r.role = \'' + worker.role + '\'') : ''}`) as 
-                     {id: number, title: string, category: string, price: number, weight: number}[];
+                const recipes = await window.electron.database(`${Menu.TableObject.getQuery()} 
+                    ${worker.role.toLowerCase() !== 'executive chef'? ('WHERE r.role = \'' + worker.role.toLowerCase() + '\'') : ''}`
+                ) as Menu.TableObject[];
 
                 return (
                     <div className='dark-div'>
@@ -698,15 +825,21 @@ namespace Tables {
                                 <tr>
                                     <th>Назва страви</th>
                                     <th>Категорія</th>
-                                    <th>Ціна за порцію</th>
-                                    <th>Вага (грамм)</th>
                                 </tr>
                                 {recipes.map(recipe => (
-                                    <tr key={recipe.id}>
+                                    <tr key={recipe.id} onClick={async () => setDisplay(
+                                            await Menu.PropertyObject.onClick('executive chef', setDisplay, 
+                                                new Recipe.TableObject({
+                                                    id: recipe.id,
+                                                    title: recipe.title, 
+                                                    weight: recipe.weight, 
+                                                    role: worker.role.toLowerCase()
+                                                })
+                                            )
+                                        )}
+                                    >
                                         <td>{recipe.title}</td>
                                         <td>{recipe.category}</td>
-                                        <td>{recipe.price}</td>
-                                        <td>{recipe.weight}</td>
                                     </tr>
                                 ))}
                             </table>

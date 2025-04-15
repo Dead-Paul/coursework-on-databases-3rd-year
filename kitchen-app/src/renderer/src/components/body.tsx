@@ -62,11 +62,16 @@ const Body = ({selectedTable, userInfo} : {selectedTable: string, userInfo: {nam
     <div id="body">
         <div className='functional-buttons'>
             {selectedTable === 'Warehouse'
-                ? (<button onClick={() => Tables.Warehouse.PropertyObject.AddProduct(setPropertiesDisplay)}>
+                ? ([
+                    <button onClick={() => Tables.Warehouse.PropertyObject.AddProduct(setPropertiesDisplay)}>
                         <p>Додати продукт</p>
-                    </button>)
+                    </button>,
+                    <button onClick={() => Tables.Warehouse.PropertyObject.findProduct(setPropertiesDisplay)}>
+                        <p>Пошук</p>
+                    </button>
+                    ])
                 : selectedTable === 'Recipe' || selectedTable === 'Menu'
-                    ? (<button onClick={() => Tables.Recipe.PropertyObject.findRecipe(setPropertiesDisplay)}>
+                    ? (<button onClick={() => Tables.Recipe.PropertyObject.findRecipe(userInfo.role, setPropertiesDisplay)}>
                             <p>Пошук</p>
                         </button>)
                     : null
