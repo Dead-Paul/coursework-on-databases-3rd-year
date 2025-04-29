@@ -20,7 +20,12 @@ function createWindow(): void {
     mainWindow.loadFile(path.join(__dirname, '../renderer/index.html'))
 };
 
-const database = new Database(path.join(app.getAppPath(), 'resources', 'db', 'kitchen.db'))
+const database = new Database(
+    app.isPackaged
+        ? path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'db', 'kitchen.db')
+        : path.join(app.getAppPath(), 'resources', 'db', 'kitchen.db')
+    );
+
 ipcMain.handle('database', async (_ : Electron.IpcMainInvokeEvent, source: string, params?: any[]) => (
         source.split(' ')[0].toUpperCase() == 'SELECT'
             ? database.prepare(source).all(...(params || [])) 

@@ -1,0 +1,64 @@
+CREATE TABLE IF NOT EXISTS "worker" (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	fullname TEXT NOT NULL,
+	role TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "recipe" (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	title TEXT NOT NULL UNIQUE,
+	category TEXT NOT NULL,
+	role TEXT NOT NULL,
+	price REAL NOT NULL,
+	weight INTEGER NOT NULL	
+);
+
+CREATE TABLE IF NOT EXISTS "product" (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	name TEXT NOT NULL UNIQUE,
+	amount INTEGER NOT NULL,
+	measurement TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS "order" (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	recipe_id INTEGER NOT NULL,
+	quantity INTEGER NOT NULL,
+	created_at TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+	FOREIGN KEY (recipe_id) REFERENCES recipe(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "ingredient" (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	recipe_id INTEGER NOT NULL,
+	product_id INTEGER NOT NULL,
+	amount INTEGER NOT NULL,
+	processing_type TEXT NOT NULL,
+	FOREIGN KEY (recipe_id) REFERENCES recipe(id) ON DELETE CASCADE,
+	FOREIGN KEY (product_id) REFERENCES product(id)	ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS "warehouse_log" (
+	id INTEGER NOT NULL PRIMARY KEY AUTOINCREMENT,
+	product_id INTEGER NOT NULL,
+	action_type INTEGER CHECK(action_type IN (1, -1)) NOT NULL,
+	amount INTEGER NOT NULL,
+	log_at TEXT NOT NULL DEFAULT (DATETIME('now', 'localtime')),
+	FOREIGN KEY (product_id) REFERENCES product(id)	ON DELETE CASCADE
+);
+
+CREATE TRIGGER log_expenses_after_order_delete AFTER DELETE ON "order"
+FOR EACH ROW 
+BEGIN
+	INSERT INTO "warehouse_log" (product_id, action_type, amount) 
+	SELECT i.product_id, -1, i.amount FROM "ingredient" i 
+	WHERE i.recipe_id = OLD.recipe_id;
+END;
+
+CREATE TRIGGER change_product_amount_after_warehouse_log_insert AFTER INSERT ON "warehouse_log"
+FOR EACH ROW
+BEGIN
+	UPDATE product
+	    SET amount = amount + (NEW.amount * NEW.action_type)
+    WHERE id = NEW.product_id;
+END;
